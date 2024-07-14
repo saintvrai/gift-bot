@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  gift-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gift-backend
+    restart: always
+    ports:
+      - "7075:7075"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - gift-network
+    volumes:
+      - ./db/migrations:/app/migrations
+
+  postgres:
+    image: postgres:latest
+    user: postgres
+    environment:
+      - POSTGRES_DB=giftdb
+      - POSTGRES_PASSWORD=qwertyqqq
+    command: postgres -c 'max_connections=500' -c 'shared_buffers=256MB'
+    ports:
+      - "5544:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks:
+      - gift-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg-data:
+
+networks:
+  gift-network:
