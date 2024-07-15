@@ -43,3 +43,31 @@ func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
 	}
 	return foundUser, nil
 }
+
+func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
+	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at FROM users;`
+	rows, err := u.db.Query(query)
+	if err != nil {
+		log.Errorf("get all users query err: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			log.Errorf("get all users scan err: %v", err)
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		log.Errorf("get all users rows err: %v", err)
+		return nil, err
+	}
+
+	return users, nil
+}

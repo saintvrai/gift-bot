@@ -20,3 +20,7 @@ func (u UserServiceImpl) CreateUser(user models.User) error {
 func (u UserServiceImpl) GetUser(user models.User) (models.User, error) {
 	return u.repo.GetUser(user)
 }
+
+func (u UserServiceImpl) GetAllUsers() ([]models.User, error) {
+	return u.repo.GetAllUsers()
+}

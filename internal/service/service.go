@@ -23,6 +23,7 @@ func NewServices(repos *repository.Repositories) *Services {
 type UserService interface {
 	CreateUser(user models.User) error
 	GetUser(user models.User) (models.User, error)
+	GetAllUsers() ([]models.User, error)
 }
 type TelegramService interface {
 	Start() *tgbotapi.BotAPI
