@@ -19,18 +19,65 @@ func NewUserRepository(db *sqlx.DB) *UserRepositoryImpl {
 }
 
 func (u UserRepositoryImpl) CreateUser(user models.User) error {
-	query := `
-		INSERT INTO users (telegram_id, username, first_name, last_name, role, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (telegram_id) DO NOTHING;
-	`
-	_, err := u.db.Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, time.Now(), time.Now())
+	query := `INSERT INTO users (telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	_, err := u.db.Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), time.Now())
 	if err != nil {
 		log.Errorf("create user err: %v", err)
 		return err
 	}
 	return nil
 }
+
+func (u UserRepositoryImpl) UpdateUser(user models.User) error {
+	query := `UPDATE users SET username=$1, first_name=$2, last_name=$3, role=$4, birthdate=$5, updated_at=$6 WHERE telegram_id=$7`
+	_, err := u.db.Exec(query, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), user.TelegramID)
+	if err != nil {
+		log.Errorf("update user err: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (u UserRepositoryImpl) GetUsersWithBirthdayInDays(days int) ([]models.User, error) {
+	query := `
+    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at
+    FROM users
+    WHERE birthdate IS NOT NULL AND
+          EXTRACT(DAY FROM birthdate - NOW()::date) = $1`
+	rows, err := u.db.Query(query, days)
+	if err != nil {
+		log.Errorf("get users with birthday in %d days err: %v", days, err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt)
+		if err != nil {
+			log.Errorf("scan user err: %v", err)
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}
+
+//func (u UserRepositoryImpl) CreateUser(user models.User) error {
+//	query := `
+//		INSERT INTO users (telegram_id, username, first_name, last_name, role, created_at, updated_at)
+//		VALUES ($1, $2, $3, $4, $5, $6, $7)
+//		ON CONFLICT (telegram_id) DO NOTHING;
+//	`
+//	_, err := u.db.Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, time.Now(), time.Now())
+//	if err != nil {
+//		log.Errorf("create user err: %v", err)
+//		return err
+//	}
+//	return nil
+//}
 
 func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
 	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at FROM users WHERE telegram_id=$1;`

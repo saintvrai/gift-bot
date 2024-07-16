@@ -28,6 +28,10 @@ func main() {
 	services := service.NewServices(repos)
 	handlers := handler.NewHandlers(services)
 	services.TelegramService.Start()
+	// Периодическое выполнение задачи
+	services.TelegramService.NotifyUpcomingBirthdays()
+	//s := gocron.NewScheduler(time.UTC)
+	//s.Every(1).Day().At("09:00").Do(services.TelegramService.NotifyUpcomingBirthdays) // Установите время в 09:00 UTC
 
 	gin.SetMode(config.GlobalСonfig.ServerConfig.GinMode)
 	srv := new(wifi.Server)
