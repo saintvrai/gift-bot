@@ -7,6 +7,7 @@ import (
 	"gift-bot/pkg/models"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
+	"strings"
 	"time"
 )
 
@@ -76,15 +77,16 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 		}
 
 		// Проверяем, заблокирован ли пользователь
-		if blockTime, blocked := t.blockedUsers[chatID]; blocked {
-			if time.Since(blockTime) < 24*time.Hour {
-				msg := tgbotapi.NewMessage(chatID, "Вы заблокированы на 24 часа из-за превышения количества попыток ввода секретного слова.")
-				bot.Send(msg)
-				continue
-			} else {
-				// Убираем блокировку после 24 часов
-				delete(t.blockedUsers, chatID)
-			}
+		existingUser, err := t.userService.GetUser(models.User{TelegramID: chatID})
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("error getting existing user: %v", err)
+			continue
+		}
+
+		if existingUser.Blocked {
+			msg := tgbotapi.NewMessage(chatID, "Вы заблокированы.")
+			bot.Send(msg)
+			continue
 		}
 
 		// Обработка состояния администратора для отправки сообщений
@@ -180,9 +182,9 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 			case waitingBirthdateState:
 				log.Printf("Received birthdate from user: %s", text)
-				birthdate, err := time.Parse("02.01.2006", text)
+				birthdate, err := time.Parse("2006-01-02", text)
 				if err != nil {
-					msg := tgbotapi.NewMessage(chatID, "Неверный формат даты. Пожалуйста, введите дату в формате ДД.ММ.ГГГГ:")
+					msg := tgbotapi.NewMessage(chatID, "Неверный формат даты. Пожалуйста, введите дату в формате ГГГГ-ММ-ДД:")
 					bot.Send(msg)
 					continue
 				}
@@ -201,6 +203,30 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 				msg := tgbotapi.NewMessage(chatID, "Дата рождения успешно сохранена.")
 				bot.Send(msg)
+				continue
+			case "waiting_delete_users":
+				if text == "отмена" {
+					t.messageState[chatID] = ""
+					msg := tgbotapi.NewMessage(chatID, "Действие отменено.")
+					bot.Send(msg)
+					continue
+				}
+
+				usernames := strings.Split(text, ",")
+				for i := range usernames {
+					usernames[i] = strings.TrimSpace(usernames[i])
+				}
+
+				err := t.userService.DeleteUsersByUsernames(usernames)
+				if err != nil {
+					log.Println(err)
+					msg := tgbotapi.NewMessage(chatID, "Ошибка при удалении пользователей.")
+					bot.Send(msg)
+				} else {
+					msg := tgbotapi.NewMessage(chatID, "Пользователи успешно удалены.")
+					bot.Send(msg)
+				}
+				t.messageState[chatID] = ""
 				continue
 			}
 		}
@@ -231,11 +257,16 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			} else {
 				t.loginAttempts[chatID]++
 				if t.loginAttempts[chatID] >= 3 {
-					msg := tgbotapi.NewMessage(chatID, "Вы исчерпали количество попыток ввода секретного слова и заблокированы на 24 часа.")
+					msg := tgbotapi.NewMessage(chatID, "Вы исчерпали количество попыток ввода секретного слова и заблокированы.")
 					bot.Send(msg)
 					t.loginState[chatID] = false
 					t.loginAttempts[chatID] = 0
-					t.blockedUsers[chatID] = time.Now()
+
+					// Обновляем состояние пользователя в базе данных
+					err := t.userService.DeleteUsersByUsernames([]string{update.Message.Chat.UserName})
+					if err != nil {
+						log.Println("Error blocking user:", err)
+					}
 				} else {
 					msg := tgbotapi.NewMessage(chatID, "Неправильное секретное слово, попробуйте снова.")
 					bot.Send(msg)
@@ -314,7 +345,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			}
 
 			if user.Role == "admin" {
-				msg := tgbotapi.NewMessage(chatID, "Введите логины пользователей через запятую, которых хотите удалить:")
+				msg := tgbotapi.NewMessage(chatID, "Введите логины пользователей через запятую, которых хотите заблокировать:")
 				bot.Send(msg)
 				t.messageState[chatID] = "waiting_delete_users"
 			} else {
@@ -372,9 +403,11 @@ func (t *Telegram) createUserSelectionKeyboard(users []models.User, addSendButto
 	var rows [][]tgbotapi.InlineKeyboardButton
 
 	for _, user := range users {
-		button := tgbotapi.NewInlineKeyboardButtonData(user.Username, user.Username)
-		row := tgbotapi.NewInlineKeyboardRow(button)
-		rows = append(rows, row)
+		if !user.Blocked {
+			button := tgbotapi.NewInlineKeyboardButtonData(user.Username, user.Username)
+			row := tgbotapi.NewInlineKeyboardRow(button)
+			rows = append(rows, row)
+		}
 	}
 
 	if addSendButton {
@@ -408,7 +441,7 @@ func (t *Telegram) NotifyUpcomingBirthdays() {
 		for _, admin := range admins {
 			message := fmt.Sprintf("У нашего коллеги %s скоро день рождения! Не забудьте его поздравить!", birthdayUser.Username)
 			msg := tgbotapi.NewMessage(admin.TelegramID, message)
-			fmt.Printf("Notifying admin %s about upcoming birthday of %s", admin.Username, birthdayUser.Username)
+			//fmt.Printf("Notifying admin %s about upcoming birthday of %s", admin.Username, birthdayUser.Username)
 			t.Bot.Send(msg)
 		}
 	}

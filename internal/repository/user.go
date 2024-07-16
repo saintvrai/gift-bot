@@ -93,11 +93,11 @@ func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
 }
 
 func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
-	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at FROM users WHERE telegram_id=$1;`
+	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at, blocked FROM users WHERE telegram_id=$1;`
 	row := u.db.QueryRow(query, user.TelegramID)
 
 	var foundUser models.User
-	err := row.Scan(&foundUser.ID, &foundUser.TelegramID, &foundUser.Username, &foundUser.FirstName, &foundUser.LastName, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt)
+	err := row.Scan(&foundUser.ID, &foundUser.TelegramID, &foundUser.Username, &foundUser.FirstName, &foundUser.LastName, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt, &foundUser.Blocked)
 	if err != nil {
 		log.Errorf("get user err: %v", err)
 		return models.User{}, err
@@ -106,10 +106,13 @@ func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
 }
 
 func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
-	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at FROM users;`
+	query := `
+    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at, blocked
+    FROM users
+    WHERE blocked = false`
 	rows, err := u.db.Query(query)
 	if err != nil {
-		log.Errorf("get all users query err: %v", err)
+		log.Errorf("get all users err: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -117,28 +120,30 @@ func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Blocked)
 		if err != nil {
-			log.Errorf("get all users scan err: %v", err)
+			log.Errorf("scan user err: %v", err)
 			return nil, err
 		}
 		users = append(users, user)
 	}
-
-	if err = rows.Err(); err != nil {
-		log.Errorf("get all users rows err: %v", err)
-		return nil, err
-	}
-
 	return users, nil
 }
 
 func (u UserRepositoryImpl) DeleteUsersByUsernames(usernames []string) error {
-	query := `DELETE FROM users WHERE username = ANY($1::text[]);`
+	query := `UPDATE users SET blocked = true WHERE username = ANY($1::text[]);`
 	_, err := u.db.Exec(query, pq.Array(usernames))
 	if err != nil {
-		log.Errorf("delete users by usernames err: %v", err)
+		log.Errorf("block users by usernames err: %v", err)
 		return err
 	}
 	return nil
+	// You can use this for DELETE user from db
+	//query := `DELETE FROM users WHERE username = ANY($1::text[]);`
+	//_, err := u.db.Exec(query, pq.Array(usernames))
+	//if err != nil {
+	//	log.Errorf("delete users by usernames err: %v", err)
+	//	return err
+	//}
+	//return nil
 }
