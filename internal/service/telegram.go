@@ -42,11 +42,15 @@ func NewTelegramService(userService UserService) *Telegram {
 type AdminMessageState struct {
 	Message     string
 	IgnoredList []string
+	User        models.User
 }
 
 var (
 	secretWord = &config.GlobalСonfig.Telegram.Secret
 )
+
+// Добавьте новое состояние для ожидания даты рождения
+const waitingBirthdateState = "waiting_birthdate"
 
 func (t *Telegram) Start() *tgbotapi.BotAPI {
 	bot := t.Bot
@@ -73,15 +77,16 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 		}
 
 		// Проверяем, заблокирован ли пользователь
-		if blockTime, blocked := t.blockedUsers[chatID]; blocked {
-			if time.Since(blockTime) < 24*time.Hour {
-				msg := tgbotapi.NewMessage(chatID, "Вы заблокированы на 24 часа из-за превышения количества попыток ввода секретного слова.")
-				bot.Send(msg)
-				continue
-			} else {
-				// Убираем блокировку после 24 часов
-				delete(t.blockedUsers, chatID)
-			}
+		existingUser, err := t.userService.GetUser(models.User{TelegramID: chatID})
+		if err != nil && err != sql.ErrNoRows {
+			log.Errorf("error getting existing user: %v", err)
+			continue
+		}
+
+		if existingUser.Blocked {
+			msg := tgbotapi.NewMessage(chatID, "Вы заблокированы.")
+			bot.Send(msg)
+			continue
 		}
 
 		// Обработка состояния администратора для отправки сообщений
@@ -175,6 +180,30 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 					continue
 				}
 
+			case waitingBirthdateState:
+				log.Printf("Received birthdate from user: %s", text)
+				birthdate, err := time.Parse("2006-01-02", text)
+				if err != nil {
+					msg := tgbotapi.NewMessage(chatID, "Неверный формат даты. Пожалуйста, введите дату в формате ГГГГ-ММ-ДД:")
+					bot.Send(msg)
+					continue
+				}
+
+				user := t.adminMessageData[chatID].User
+				user.Birthdate = birthdate
+				err = t.userService.CreateUser(user)
+				if err != nil {
+					msg := tgbotapi.NewMessage(chatID, "Ошибка при создании пользователя.")
+					bot.Send(msg)
+					continue
+				}
+
+				delete(t.adminMessageData, chatID)
+				t.messageState[chatID] = ""
+
+				msg := tgbotapi.NewMessage(chatID, "Дата рождения успешно сохранена.")
+				bot.Send(msg)
+				continue
 			case "waiting_delete_users":
 				if text == "отмена" {
 					t.messageState[chatID] = ""
@@ -215,25 +244,29 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 					UpdatedAt:  time.Now(),
 				}
 
-				err := t.userService.CreateUser(user)
-				if err != nil {
-					log.Println(err)
-					continue
+				t.adminMessageData[chatID] = &AdminMessageState{
+					User: user,
 				}
-
-				msg := tgbotapi.NewMessage(chatID, "Вы успешно зарегистрированы в боте!")
-				bot.Send(msg)
 
 				t.loginState[chatID] = false
 				t.loginAttempts[chatID] = 0
+				t.messageState[chatID] = waitingBirthdateState
+
+				msg := tgbotapi.NewMessage(chatID, "Введите вашу дату рождения в формате ГГГГ-ММ-ДД:")
+				bot.Send(msg)
 			} else {
 				t.loginAttempts[chatID]++
 				if t.loginAttempts[chatID] >= 3 {
-					msg := tgbotapi.NewMessage(chatID, "Вы исчерпали количество попыток ввода секретного слова и заблокированы на 24 часа.")
+					msg := tgbotapi.NewMessage(chatID, "Вы исчерпали количество попыток ввода секретного слова и заблокированы.")
 					bot.Send(msg)
 					t.loginState[chatID] = false
 					t.loginAttempts[chatID] = 0
-					t.blockedUsers[chatID] = time.Now()
+
+					// Обновляем состояние пользователя в базе данных
+					err := t.userService.DeleteUsersByUsernames([]string{update.Message.Chat.UserName})
+					if err != nil {
+						log.Println("Error blocking user:", err)
+					}
 				} else {
 					msg := tgbotapi.NewMessage(chatID, "Неправильное секретное слово, попробуйте снова.")
 					bot.Send(msg)
@@ -312,7 +345,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			}
 
 			if user.Role == "admin" {
-				msg := tgbotapi.NewMessage(chatID, "Введите логины пользователей через запятую, которых хотите удалить:")
+				msg := tgbotapi.NewMessage(chatID, "Введите логины пользователей через запятую, которых хотите заблокировать:")
 				bot.Send(msg)
 				t.messageState[chatID] = "waiting_delete_users"
 			} else {
@@ -370,9 +403,11 @@ func (t *Telegram) createUserSelectionKeyboard(users []models.User, addSendButto
 	var rows [][]tgbotapi.InlineKeyboardButton
 
 	for _, user := range users {
-		button := tgbotapi.NewInlineKeyboardButtonData(user.Username, user.Username)
-		row := tgbotapi.NewInlineKeyboardRow(button)
-		rows = append(rows, row)
+		if !user.Blocked {
+			button := tgbotapi.NewInlineKeyboardButtonData(user.Username, user.Username)
+			row := tgbotapi.NewInlineKeyboardRow(button)
+			rows = append(rows, row)
+		}
 	}
 
 	if addSendButton {
@@ -382,4 +417,32 @@ func (t *Telegram) createUserSelectionKeyboard(users []models.User, addSendButto
 	}
 
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
+func (t *Telegram) NotifyUpcomingBirthdays() {
+	usersWithBirthdayIn3Days, err := t.userService.GetUsersWithBirthdayInDays()
+	if err != nil {
+		log.Println("Error getting users with birthday in 3 days:", err)
+		return
+	}
+	fmt.Println(usersWithBirthdayIn3Days)
+
+	if len(usersWithBirthdayIn3Days) == 0 {
+		return
+	}
+
+	admins, err := t.userService.GetAllAdmins()
+	if err != nil {
+		log.Println("Error getting all admins:", err)
+		return
+	}
+
+	for _, birthdayUser := range usersWithBirthdayIn3Days {
+		for _, admin := range admins {
+			message := fmt.Sprintf("У нашего коллеги %s скоро день рождения! Не забудьте его поздравить!", birthdayUser.Username)
+			msg := tgbotapi.NewMessage(admin.TelegramID, message)
+			//fmt.Printf("Notifying admin %s about upcoming birthday of %s", admin.Username, birthdayUser.Username)
+			t.Bot.Send(msg)
+		}
+	}
 }

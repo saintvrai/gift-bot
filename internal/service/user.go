@@ -28,3 +28,15 @@ func (u UserServiceImpl) GetAllUsers() ([]models.User, error) {
 func (u UserServiceImpl) DeleteUsersByUsernames(usernames []string) error {
 	return u.repo.DeleteUsersByUsernames(usernames)
 }
+
+func (u UserServiceImpl) UpdateUser(user models.User) error {
+	return u.repo.UpdateUser(user)
+}
+
+func (u UserServiceImpl) GetUsersWithBirthdayInDays() ([]models.User, error) {
+	return u.repo.GetUsersWithBirthdayInDays()
+}
+
+func (u UserServiceImpl) GetAllAdmins() ([]models.User, error) {
+	return u.repo.GetAllAdmins()
+}
