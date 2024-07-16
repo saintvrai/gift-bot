@@ -36,7 +36,7 @@ type TelegramConfig struct {
 
 var GlobalСonfig Config
 
-// Метод чтения данных из config
+// Init Метод чтения данных из config
 func (c *Config) Init() {
 	viper.SetConfigFile("./configs/config.yml")
 	if err := viper.ReadInConfig(); err != nil {
