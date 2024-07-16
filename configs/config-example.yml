@@ -1,0 +1,21 @@
+# Server configuration
+server:
+  ginmode: debug
+  port: 7075
+  timezone: Europe/Moscow
+
+# Database configuration
+db:
+  host: postgres
+  port: 5432
+  username: postgres
+  name: giftdb
+  password: mypassword
+  sslmode: disable
+  migrations: /app/migrations
+
+# Telegram configuration
+telegram:
+  host: api.telegram.org
+  token: API_token_from_BotFather
+  secret: Write the secret word here to login users
