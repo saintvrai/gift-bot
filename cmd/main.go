@@ -9,10 +9,12 @@ import (
 	"gift-bot/pkg/config"
 	"gift-bot/pkg/postgres"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -27,11 +29,13 @@ func main() {
 	repos := repository.NewRepositories(db)
 	services := service.NewServices(repos)
 	handlers := handler.NewHandlers(services)
-	services.TelegramService.Start()
-	// Периодическое выполнение задачи
+
+	go services.TelegramService.Start()
+
 	services.TelegramService.NotifyUpcomingBirthdays()
-	//s := gocron.NewScheduler(time.UTC)
-	//s.Every(1).Day().At("09:00").Do(services.TelegramService.NotifyUpcomingBirthdays) // Установите время в 09:00 UTC
+
+	s := gocron.NewScheduler(time.UTC)
+	s.Every(1).Day().At("09:15").Do(services.TelegramService.NotifyUpcomingBirthdays)
 
 	gin.SetMode(config.GlobalСonfig.ServerConfig.GinMode)
 	srv := new(wifi.Server)

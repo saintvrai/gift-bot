@@ -33,6 +33,10 @@ func (u UserServiceImpl) UpdateUser(user models.User) error {
 	return u.repo.UpdateUser(user)
 }
 
-func (u UserServiceImpl) GetUsersWithBirthdayInDays(days int) ([]models.User, error) {
-	return u.repo.GetUsersWithBirthdayInDays(days)
+func (u UserServiceImpl) GetUsersWithBirthdayInDays() ([]models.User, error) {
+	return u.repo.GetUsersWithBirthdayInDays()
+}
+
+func (u UserServiceImpl) GetAllAdmins() ([]models.User, error) {
+	return u.repo.GetAllAdmins()
 }

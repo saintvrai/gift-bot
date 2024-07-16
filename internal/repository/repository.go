@@ -20,5 +20,6 @@ type UserRepository interface {
 	GetAllUsers() ([]models.User, error)
 	DeleteUsersByUsernames(usernames []string) error
 	UpdateUser(user models.User) error
-	GetUsersWithBirthdayInDays(days int) ([]models.User, error)
+	GetUsersWithBirthdayInDays() ([]models.User, error)
+	GetAllAdmins() ([]models.User, error)
 }
