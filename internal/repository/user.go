@@ -3,6 +3,7 @@ package repository
 import (
 	"gift-bot/pkg/models"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
@@ -70,4 +71,14 @@ func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
 	}
 
 	return users, nil
+}
+
+func (u UserRepositoryImpl) DeleteUsersByUsernames(usernames []string) error {
+	query := `DELETE FROM users WHERE username = ANY($1::text[]);`
+	_, err := u.db.Exec(query, pq.Array(usernames))
+	if err != nil {
+		log.Errorf("delete users by usernames err: %v", err)
+		return err
+	}
+	return nil
 }

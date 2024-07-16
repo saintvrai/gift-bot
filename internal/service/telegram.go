@@ -7,6 +7,7 @@ import (
 	"gift-bot/pkg/models"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
+	"strings"
 	"time"
 )
 
@@ -110,7 +111,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				}
 
 				keyboard := t.createUserSelectionKeyboard(users, true)
-				msg := tgbotapi.NewMessage(chatID, "Оставьте здесь всех пользователей, которым НУЖНО отправить сообщение. Для отмены введите 'отмена'.")
+				msg := tgbotapi.NewMessage(chatID, "Выберите пользователей, которым не нужно отправлять сообщение. Для отмены введите 'отмена'.")
 				msg.ReplyMarkup = keyboard
 				bot.Send(msg)
 				continue
@@ -173,6 +174,31 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 					t.sendMessageToUsers(chatID)
 					continue
 				}
+
+			case "waiting_delete_users":
+				if text == "отмена" {
+					t.messageState[chatID] = ""
+					msg := tgbotapi.NewMessage(chatID, "Действие отменено.")
+					bot.Send(msg)
+					continue
+				}
+
+				usernames := strings.Split(text, ",")
+				for i := range usernames {
+					usernames[i] = strings.TrimSpace(usernames[i])
+				}
+
+				err := t.userService.DeleteUsersByUsernames(usernames)
+				if err != nil {
+					log.Println(err)
+					msg := tgbotapi.NewMessage(chatID, "Ошибка при удалении пользователей.")
+					bot.Send(msg)
+				} else {
+					msg := tgbotapi.NewMessage(chatID, "Пользователи успешно удалены.")
+					bot.Send(msg)
+				}
+				t.messageState[chatID] = ""
+				continue
 			}
 		}
 
@@ -271,6 +297,24 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				msg := tgbotapi.NewMessage(chatID, "Введите сообщение, которое хотите отправить всем пользователям:")
 				bot.Send(msg)
 				t.messageState[chatID] = "waiting_message"
+			} else {
+				msg := tgbotapi.NewMessage(chatID, "У вас нет прав для использования этой команды.")
+				bot.Send(msg)
+			}
+
+		case "/delete":
+			user, err := t.userService.GetUser(models.User{TelegramID: chatID})
+			if err != nil {
+				log.Println(err)
+				msg := tgbotapi.NewMessage(chatID, "Ошибка при получении данных пользователя.")
+				bot.Send(msg)
+				continue
+			}
+
+			if user.Role == "admin" {
+				msg := tgbotapi.NewMessage(chatID, "Введите логины пользователей через запятую, которых хотите удалить:")
+				bot.Send(msg)
+				t.messageState[chatID] = "waiting_delete_users"
 			} else {
 				msg := tgbotapi.NewMessage(chatID, "У вас нет прав для использования этой команды.")
 				bot.Send(msg)

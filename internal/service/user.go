@@ -24,3 +24,7 @@ func (u UserServiceImpl) GetUser(user models.User) (models.User, error) {
 func (u UserServiceImpl) GetAllUsers() ([]models.User, error) {
 	return u.repo.GetAllUsers()
 }
+
+func (u UserServiceImpl) DeleteUsersByUsernames(usernames []string) error {
+	return u.repo.DeleteUsersByUsernames(usernames)
+}

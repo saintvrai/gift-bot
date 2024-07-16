@@ -18,4 +18,5 @@ type UserRepository interface {
 	CreateUser(user models.User) error
 	GetUser(user models.User) (models.User, error)
 	GetAllUsers() ([]models.User, error)
+	DeleteUsersByUsernames(usernames []string) error
 }
