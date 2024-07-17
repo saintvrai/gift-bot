@@ -9,7 +9,6 @@ import (
 	"gift-bot/pkg/config"
 	"gift-bot/pkg/postgres"
 	"github.com/gin-gonic/gin"
-	"github.com/go-co-op/gocron"
 	"log"
 	"os"
 	"os/signal"
@@ -18,6 +17,7 @@ import (
 )
 
 func main() {
+	os.Setenv("TZ", "Europe/Moscow")
 	config.GlobalСonfig.Init()
 
 	db, err := postgres.New()
@@ -32,10 +32,30 @@ func main() {
 
 	go services.TelegramService.Start()
 
-	//services.TelegramService.NotifyUpcomingBirthdays()
+	// UTC+3
+	loc, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		log.Fatalf("Failed to load location: %v", err)
+	}
 
-	s := gocron.NewScheduler(time.UTC)
-	s.Every(1).Day().At("09:15").Do(services.TelegramService.NotifyUpcomingBirthdays)
+	log.Println("Timezone set to Europe/Moscow")
+
+	// Запуск горутины для периодического выполнения задачи
+	go func() {
+		for {
+			now := time.Now().In(loc)
+			nextRun := time.Date(now.Year(), now.Month(), now.Day(), 9, 00, 0, 0, loc)
+			if now.After(nextRun) {
+				nextRun = nextRun.Add(24 * time.Hour)
+			}
+			time.Sleep(time.Until(nextRun))
+
+			log.Println("Running scheduled task")
+			services.TelegramService.NotifyUpcomingBirthdays()
+		}
+	}()
+	//s := gocron.NewScheduler(time.UTC)
+	//s.Every(1).Day().At("8:10").Do(services.TelegramService.NotifyUpcomingBirthdays)
 
 	gin.SetMode(config.GlobalСonfig.ServerConfig.GinMode)
 	srv := new(wifi.Server)

@@ -182,9 +182,9 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 			case waitingBirthdateState:
 				log.Printf("Received birthdate from user: %s", text)
-				birthdate, err := time.Parse("2006-01-02", text)
+				birthdate, err := time.Parse("02.01.2006", text)
 				if err != nil {
-					msg := tgbotapi.NewMessage(chatID, "Неверный формат даты. Пожалуйста, введите дату в формате ГГГГ-ММ-ДД:")
+					msg := tgbotapi.NewMessage(chatID, "Неверный формат даты. Пожалуйста, введите дату в формате ДД.ММ.ГГГГ:")
 					bot.Send(msg)
 					continue
 				}
@@ -252,7 +252,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				t.loginAttempts[chatID] = 0
 				t.messageState[chatID] = waitingBirthdateState
 
-				msg := tgbotapi.NewMessage(chatID, "Введите вашу дату рождения в формате ГГГГ-ММ-ДД:")
+				msg := tgbotapi.NewMessage(chatID, "Введите вашу дату рождения в формате ДД.ММ.ГГГГ:")
 				bot.Send(msg)
 			} else {
 				t.loginAttempts[chatID]++
@@ -425,7 +425,6 @@ func (t *Telegram) NotifyUpcomingBirthdays() {
 		log.Println("Error getting users with birthday in 3 days:", err)
 		return
 	}
-	fmt.Println(usersWithBirthdayIn3Days)
 
 	if len(usersWithBirthdayIn3Days) == 0 {
 		return
