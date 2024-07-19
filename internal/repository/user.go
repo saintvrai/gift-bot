@@ -44,8 +44,8 @@ func (u UserRepositoryImpl) GetUsersWithBirthdayInDays() ([]models.User, error) 
     SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at
     FROM users
     WHERE birthdate IS NOT NULL 
-    AND (EXTRACT(DOY FROM birthdate) - EXTRACT(DOY FROM NOW())) = 3
-    OR (EXTRACT(DOY FROM birthdate) - EXTRACT(DOY FROM NOW())) = -3;`
+    AND (EXTRACT(DOY FROM birthdate) - EXTRACT(DOY FROM NOW())) = 2
+    OR (EXTRACT(DOY FROM birthdate) - EXTRACT(DOY FROM NOW())) = -2;`
 
 	rows, err := u.db.Query(query)
 	if err != nil {
