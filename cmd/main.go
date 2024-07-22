@@ -30,8 +30,6 @@ func main() {
 	services := service.NewServices(repos)
 	handlers := handler.NewHandlers(services)
 
-	go services.TelegramService.Start()
-
 	// UTC+3
 	loc, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
@@ -54,6 +52,8 @@ func main() {
 			services.TelegramService.NotifyUpcomingBirthdays()
 		}
 	}()
+
+	services.TelegramService.Start()
 	//s := gocron.NewScheduler(time.UTC)
 	//s.Every(1).Day().At("8:10").Do(services.TelegramService.NotifyUpcomingBirthdays)
 
