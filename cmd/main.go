@@ -38,6 +38,8 @@ func main() {
 
 	log.Println("Timezone set to Europe/Moscow")
 
+	go services.TelegramService.Start()
+
 	// Запуск горутины для периодического выполнения задачи
 	go func() {
 		for {
@@ -53,7 +55,6 @@ func main() {
 		}
 	}()
 
-	services.TelegramService.Start()
 	//s := gocron.NewScheduler(time.UTC)
 	//s.Every(1).Day().At("8:10").Do(services.TelegramService.NotifyUpcomingBirthdays)
 
