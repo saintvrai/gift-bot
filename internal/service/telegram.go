@@ -201,7 +201,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				delete(t.adminMessageData, chatID)
 				t.messageState[chatID] = ""
 
-				msg := tgbotapi.NewMessage(chatID, "Дата рождения успешно сохранена.")
+				msg := tgbotapi.NewMessage(chatID, "Вы успешно зарегестрировались.")
 				bot.Send(msg)
 				continue
 			case "waiting_delete_users":
