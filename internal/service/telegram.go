@@ -370,27 +370,40 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 		case "/list":
 
-			users, err := t.userService.GetAllUsers()
+			user, err := t.userService.GetUser(models.User{TelegramID: chatID})
 			if err != nil {
 				log.Println(err)
-				msg := tgbotapi.NewMessage(chatID, "Ошибка при обновлении списка пользователей.")
+				msg := tgbotapi.NewMessage(chatID, "Ошибка при получении данных пользователя.")
 				bot.Send(msg)
 				continue
 			}
-			if len(users) == 0 {
-				msg := tgbotapi.NewMessage(chatID, "Нет зарегистрированных пользователей.")
+
+			if user.Role == "admin" {
+				users, err := t.userService.GetAllUsers()
+				if err != nil {
+					log.Println(err)
+					msg := tgbotapi.NewMessage(chatID, "Ошибка при обновлении списка пользователей.")
+					bot.Send(msg)
+					continue
+				}
+				if len(users) == 0 {
+					msg := tgbotapi.NewMessage(chatID, "Нет зарегистрированных пользователей.")
+					t.Bot.Send(msg)
+				}
+
+				var userList string
+				i := 1
+				for _, user := range users {
+					userList += fmt.Sprintf("%v. @%s\n", i, user.Username)
+					i++
+				}
+
+				msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Список зарегистрированных пользователей:\n\n%s", userList))
 				t.Bot.Send(msg)
+			} else {
+				msg := tgbotapi.NewMessage(chatID, "У вас нет прав для использования этой команды.")
+				bot.Send(msg)
 			}
-
-			var userList string
-			i := 1
-			for _, user := range users {
-				userList += fmt.Sprintf("%v. @%s\n", i, user.Username)
-				i++
-			}
-
-			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Список зарегистрированных пользователей:\n\n%s", userList))
-			t.Bot.Send(msg)
 
 		default:
 			msg := tgbotapi.NewMessage(chatID, "К сожалению, я вас не понял.")
