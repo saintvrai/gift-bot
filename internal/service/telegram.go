@@ -203,6 +203,21 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 				msg := tgbotapi.NewMessage(chatID, "Вы успешно зарегистрировались.")
 				bot.Send(msg)
+				// Отправляем админам уведомление о регистрации в боте пользователя
+
+				admins, err := t.userService.GetAllAdmins()
+				if err != nil {
+					log.Println("Error getting all admins:", err)
+					continue
+				}
+
+				for _, admin := range admins {
+					message := fmt.Sprintf("Пользователь @%s зарегистрировался в боте", user.Username)
+					msg := tgbotapi.NewMessage(admin.TelegramID, message)
+					//fmt.Printf("Notifying admin %s about upcoming birthday of %s", admin.Username, birthdayUser.Username)
+					t.Bot.Send(msg)
+				}
+
 				continue
 			case "waiting_delete_users":
 				if text == "отмена" {
@@ -352,6 +367,30 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				msg := tgbotapi.NewMessage(chatID, "У вас нет прав для использования этой команды.")
 				bot.Send(msg)
 			}
+
+		case "/list":
+
+			users, err := t.userService.GetAllUsers()
+			if err != nil {
+				log.Println(err)
+				msg := tgbotapi.NewMessage(chatID, "Ошибка при обновлении списка пользователей.")
+				bot.Send(msg)
+				continue
+			}
+			if len(users) == 0 {
+				msg := tgbotapi.NewMessage(chatID, "Нет зарегистрированных пользователей.")
+				t.Bot.Send(msg)
+			}
+
+			var userList string
+			i := 1
+			for _, user := range users {
+				userList += fmt.Sprintf("%v. @%s\n", i, user.Username)
+				i++
+			}
+
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Список зарегистрированных пользователей:\n\n%s", userList))
+			t.Bot.Send(msg)
 
 		default:
 			msg := tgbotapi.NewMessage(chatID, "К сожалению, я вас не понял.")

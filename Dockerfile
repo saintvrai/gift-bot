@@ -1,5 +1,5 @@
 # Step 1: Build stage
-FROM golang:1.22-alpine as builder
+FROM golang:1.22-alpine AS builder
 WORKDIR /gift
 
 # Установите tzdata для работы с часовыми поясами
