@@ -62,6 +62,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 	for update := range updates {
 		if update.Message == nil && update.CallbackQuery == nil {
+			log.Println("1", update.Message.From.UserName, update.Message.Chat.ID)
 			continue
 		}
 
@@ -71,22 +72,24 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 		if update.Message != nil {
 			chatID = update.Message.Chat.ID
 			text = update.Message.Text
+			log.Println("2", chatID, update.Message.Text, update.Message.From.UserName, update.Message.From.FirstName)
 		} else if update.CallbackQuery != nil {
 			chatID = update.CallbackQuery.Message.Chat.ID
 			text = update.CallbackQuery.Data
+			log.Println("3", chatID, update.Message.From.UserName, update.Message.Chat.ID)
 		}
 
-		if update.Message.Text == "/start" || update.Message.Text == "start" {
-			user := models.User{
-				TelegramID: chatID,
-			}
+		if text == "/start" {
 
-			user.Username = update.Message.Chat.UserName
-			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Привет, %s! Это простой телеграм бот для поздравляшек "+
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Привет! Это простой телеграм бот для поздравляшек "+
 				"своих близких коллег. Тут есть пару команд, чтобы ты мог начать получать сообщения! Если что-то будет "+
-				"не так, то ты всегда можешь написать своему администратору для устранения проблем", user.Username))
+				"не так, то ты всегда можешь написать своему администратору для устранения проблем"))
 			msg.ParseMode = "Markdown"
-			bot.Send(msg)
+			send, err := bot.Send(msg)
+			if err != nil {
+				log.Println("Error with start", send, err)
+			}
+			continue
 		}
 
 		// Проверяем, заблокирован ли пользователь
@@ -408,7 +411,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			}
 
 		default:
-			if strings.HasPrefix(update.Message.Text, "/start") {
+			if update.Message.Text == "/start" || update.Message.From.UserName == "/start" {
 				user := models.User{
 					TelegramID: chatID,
 				}
@@ -419,6 +422,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 					"не так, то ты всегда можешь написать своему администратору для устранения проблем", user.Username))
 				msg.ParseMode = "Markdown"
 				bot.Send(msg)
+				continue
 			}
 			msg := tgbotapi.NewMessage(chatID, "К сожалению, я вас не понял.")
 			msg.ParseMode = "Markdown"
