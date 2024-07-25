@@ -89,6 +89,19 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			continue
 		}
 
+		if text == "/start" {
+			user := models.User{
+				TelegramID: chatID,
+			}
+
+			user.Username = update.Message.Chat.UserName
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Привет, %s! Это простой телеграм бот для поздравляшек "+
+				"своих близких коллег. Тут есть пару команд, чтобы ты мог начать получать сообщения! Если что-то будет "+
+				"не так, то ты всегда можешь написать своему администратору для устранения проблем", user.Username))
+			msg.ParseMode = "Markdown"
+			bot.Send(msg)
+		}
+
 		// Обработка состояния администратора для отправки сообщений
 		if state, exists := t.messageState[chatID]; exists {
 			if text == "отмена" {
@@ -291,17 +304,6 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 		}
 
 		switch text {
-		case "/start":
-			user := models.User{
-				TelegramID: chatID,
-			}
-
-			user.Username = update.Message.Chat.UserName
-			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Привет, %s! Это простой телеграм бот для поздравляшек "+
-				"своих близких коллег. Тут есть пару команд, чтобы ты мог начать получать сообщения! Если что-то будет "+
-				"не так, то ты всегда можешь написать своему администратору для устранения проблем", user.Username))
-			msg.ParseMode = "Markdown"
-			bot.Send(msg)
 
 		case "/chat":
 			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Ваш уникальный номер чата: `%d`", chatID))
