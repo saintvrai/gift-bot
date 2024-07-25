@@ -76,6 +76,19 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			text = update.CallbackQuery.Data
 		}
 
+		if text == "/start" || text == "start" {
+			user := models.User{
+				TelegramID: chatID,
+			}
+
+			user.Username = update.Message.Chat.UserName
+			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Привет, %s! Это простой телеграм бот для поздравляшек "+
+				"своих близких коллег. Тут есть пару команд, чтобы ты мог начать получать сообщения! Если что-то будет "+
+				"не так, то ты всегда можешь написать своему администратору для устранения проблем", user.Username))
+			msg.ParseMode = "Markdown"
+			bot.Send(msg)
+		}
+
 		// Проверяем, заблокирован ли пользователь
 		existingUser, err := t.userService.GetUser(models.User{TelegramID: chatID})
 		if err != nil && err != sql.ErrNoRows {
@@ -87,19 +100,6 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			msg := tgbotapi.NewMessage(chatID, "Вы заблокированы.")
 			bot.Send(msg)
 			continue
-		}
-
-		if text == "/start" {
-			user := models.User{
-				TelegramID: chatID,
-			}
-
-			user.Username = update.Message.Chat.UserName
-			msg := tgbotapi.NewMessage(chatID, fmt.Sprintf("Привет, %s! Это простой телеграм бот для поздравляшек "+
-				"своих близких коллег. Тут есть пару команд, чтобы ты мог начать получать сообщения! Если что-то будет "+
-				"не так, то ты всегда можешь написать своему администратору для устранения проблем", user.Username))
-			msg.ParseMode = "Markdown"
-			bot.Send(msg)
 		}
 
 		// Обработка состояния администратора для отправки сообщений
