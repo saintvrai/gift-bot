@@ -408,6 +408,9 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 			}
 
 		default:
+			if text == "/start" {
+				continue
+			}
 			msg := tgbotapi.NewMessage(chatID, "К сожалению, я вас не понял.")
 			msg.ParseMode = "Markdown"
 			bot.Send(msg)
