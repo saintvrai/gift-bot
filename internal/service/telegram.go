@@ -508,7 +508,7 @@ func (t *Telegram) NotifyUpcomingBirthdays() {
 
 	for _, birthdayUser := range usersWithBirthdayIn3Days {
 		for _, admin := range admins {
-			message := fmt.Sprintf("У нашего коллеги %s скоро день рождения! Не забудьте его поздравить!", birthdayUser.Username)
+			message := fmt.Sprintf("У нашего коллеги @%s скоро день рождения! Не забудьте его поздравить!", birthdayUser.Username)
 			msg := tgbotapi.NewMessage(admin.TelegramID, message)
 			//fmt.Printf("Notifying admin %s about upcoming birthday of %s", admin.Username, birthdayUser.Username)
 			t.Bot.Send(msg)
