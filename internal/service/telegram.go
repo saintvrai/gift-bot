@@ -62,7 +62,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 
 	for update := range updates {
 		if update.Message == nil && update.CallbackQuery == nil {
-			log.Println("1", update.Message.From.UserName, update.Message.Chat.ID)
+			//log.Println("1", update.Message.From.UserName, update.Message.Chat.ID)
 			continue
 		}
 
@@ -76,7 +76,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 		} else if update.CallbackQuery != nil {
 			chatID = update.CallbackQuery.Message.Chat.ID
 			text = update.CallbackQuery.Data
-			log.Println("3", chatID, update.Message.From.UserName, update.Message.Chat.ID)
+			//log.Println("3", chatID, update.Message.From.UserName, update.Message.Chat.ID)
 		}
 
 		if text == "/start" {
