@@ -19,9 +19,9 @@ func NewUserRepository(db *sqlx.DB) *UserRepositoryImpl {
 }
 
 func (u UserRepositoryImpl) CreateUser(user models.User) error {
-	query := `INSERT INTO users (telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	_, err := u.db.Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), time.Now())
+	query := `INSERT INTO users (telegram_id, username, first_name, last_name, role, birthdate, wishlist, created_at, updated_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	_, err := u.db.Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, pq.Array(user.Wishlist), time.Now(), time.Now())
 	if err != nil {
 		log.Errorf("create user err: %v", err)
 		return err
@@ -30,8 +30,8 @@ func (u UserRepositoryImpl) CreateUser(user models.User) error {
 }
 
 func (u UserRepositoryImpl) UpdateUser(user models.User) error {
-	query := `UPDATE users SET username=$1, first_name=$2, last_name=$3, role=$4, birthdate=$5, updated_at=$6 WHERE telegram_id=$7`
-	_, err := u.db.Exec(query, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), user.TelegramID)
+	query := `UPDATE users SET username=$1, first_name=$2, last_name=$3, role=$4, birthdate=$5, wishlist=$6, updated_at=$7 WHERE telegram_id=$8`
+	_, err := u.db.Exec(query, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, pq.Array(user.Wishlist), time.Now(), user.TelegramID)
 	if err != nil {
 		log.Errorf("update user err: %v", err)
 		return err
@@ -41,7 +41,7 @@ func (u UserRepositoryImpl) UpdateUser(user models.User) error {
 
 func (u UserRepositoryImpl) GetUsersWithBirthdayInDays() ([]models.User, error) {
 	query := `
-    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at
+    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at,wishlist
     FROM users
     WHERE birthdate IS NOT NULL 
     AND (EXTRACT(DOY FROM birthdate) - EXTRACT(DOY FROM NOW())) = 2`
@@ -56,7 +56,7 @@ func (u UserRepositoryImpl) GetUsersWithBirthdayInDays() ([]models.User, error) 
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt)
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Wishlist)
 		if err != nil {
 			log.Errorf("scan user err: %v", err)
 			return nil, err
@@ -68,7 +68,7 @@ func (u UserRepositoryImpl) GetUsersWithBirthdayInDays() ([]models.User, error) 
 
 func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
 	query := `
-    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at
+    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at, wishlist
     FROM users
     WHERE role = 'admin'`
 	rows, err := u.db.Query(query)
@@ -81,7 +81,7 @@ func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt)
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Wishlist)
 		if err != nil {
 			log.Errorf("scan user err: %v", err)
 			return nil, err
@@ -92,11 +92,11 @@ func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
 }
 
 func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
-	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at, blocked FROM users WHERE telegram_id=$1;`
+	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at, blocked, wishlist FROM users WHERE telegram_id=$1;`
 	row := u.db.QueryRow(query, user.TelegramID)
 
 	var foundUser models.User
-	err := row.Scan(&foundUser.ID, &foundUser.TelegramID, &foundUser.Username, &foundUser.FirstName, &foundUser.LastName, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt, &foundUser.Blocked)
+	err := row.Scan(&foundUser.ID, &foundUser.TelegramID, &foundUser.Username, &foundUser.FirstName, &foundUser.LastName, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt, &foundUser.Blocked, pq.Array(&foundUser.Wishlist))
 	if err != nil {
 		log.Errorf("get user err: %v", err)
 		return models.User{}, err
@@ -106,7 +106,7 @@ func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
 
 func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
 	query := `
-    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at, blocked
+    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at, blocked, wishlist
     FROM users
     WHERE blocked = false`
 	rows, err := u.db.Query(query)
@@ -119,7 +119,7 @@ func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Blocked)
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Blocked, pq.Array(&user.Wishlist))
 		if err != nil {
 			log.Errorf("scan user err: %v", err)
 			return nil, err
@@ -137,12 +137,5 @@ func (u UserRepositoryImpl) DeleteUsersByUsernames(usernames []string) error {
 		return err
 	}
 	return nil
-	// You can use this for DELETE user from db
-	//query := `DELETE FROM users WHERE username = ANY($1::text[]);`
-	//_, err := u.db.Exec(query, pq.Array(usernames))
-	//if err != nil {
-	//	log.Errorf("delete users by usernames err: %v", err)
-	//	return err
-	//}
-	//return nil
+
 }

@@ -22,7 +22,7 @@ func main() {
 
 	db, err := postgres.New()
 	if err != nil {
-		log.Fatalf("can't create new postgres db2: %s", err.Error())
+		log.Fatalf("can't create new postgres db: %s", err.Error())
 	}
 	postgres.MigrateDB(db, config.GlobalСonfig.DB.Name)
 
