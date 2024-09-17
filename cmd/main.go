@@ -40,6 +40,8 @@ func main() {
 
 	go services.TelegramService.Start()
 
+	services.TelegramService.NotifyUpcomingBirthdays()
+
 	// Запуск горутины для периодического выполнения задачи
 	go func() {
 		for {

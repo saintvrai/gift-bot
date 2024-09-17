@@ -56,7 +56,7 @@ func (u UserRepositoryImpl) GetUsersWithBirthdayInDays() ([]models.User, error) 
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Wishlist)
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, pq.Array(&user.Wishlist))
 		if err != nil {
 			log.Errorf("scan user err: %v", err)
 			return nil, err
@@ -81,7 +81,7 @@ func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Wishlist)
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, pq.Array(&user.Wishlist))
 		if err != nil {
 			log.Errorf("scan user err: %v", err)
 			return nil, err
