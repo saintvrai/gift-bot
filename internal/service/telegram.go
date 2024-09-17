@@ -96,7 +96,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				"/message — отправить сообщение (для админов)\n"+
 				"/delete — заблокировать пользователей (для админов)\n"+
 				"/list — список пользователей (для админов)\n"+
-				"/view_wishlist — показать список желаний пользователя (для админов)")
+				"/viewwishlist — показать список желаний пользователя (для админов)")
 			msg.ParseMode = "Markdown"
 			send, err := bot.Send(msg)
 			if err != nil {
@@ -456,7 +456,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 				bot.Send(msg)
 			}
 
-		case "/view_wishlist":
+		case "/viewwishlist":
 			user, err := t.userService.GetUser(models.User{TelegramID: chatID})
 			if err != nil {
 				log.Println(err)
@@ -506,7 +506,7 @@ func (t *Telegram) Start() *tgbotapi.BotAPI {
 					"/message — отправить сообщение (для админов)\n"+
 					"/delete — заблокировать пользователей (для админов)\n"+
 					"/list — список пользователей (для админов)\n"+
-					"/view_wishlist — показать список желаний пользователя (для админов)", user.Username))
+					"/viewwishlist — показать список желаний пользователя (для админов)", user.Username))
 				msg.ParseMode = "Markdown"
 				bot.Send(msg)
 				continue
@@ -604,7 +604,7 @@ func (t *Telegram) showMainMenu(chatID int64) {
 		"/message — отправить сообщение (для админов)\n"+
 		"/delete — заблокировать пользователей (для админов)\n"+
 		"/list — список пользователей (для админов)\n"+
-		"/view_wishlist — показать список желаний пользователя (для админов)")
+		"/viewwishlist — показать список желаний пользователя (для админов)")
 	// Удаляем клавиатуру и возвращаемся к основному меню
 	msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 	t.Bot.Send(msg)
