@@ -2,26 +2,25 @@ package repository
 
 import (
 	"gift-bot/pkg/models"
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"time"
 )
 
 type UserRepositoryImpl struct {
-	db *sqlx.DB
+	dbProvider DBProvider
 }
 
-func NewUserRepository(db *sqlx.DB) *UserRepositoryImpl {
+func NewUserRepository(dbProvider DBProvider) *UserRepositoryImpl {
 	return &UserRepositoryImpl{
-		db: db,
+		dbProvider: dbProvider,
 	}
 }
 
 func (u UserRepositoryImpl) CreateUser(user models.User) error {
 	query := `INSERT INTO users (telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	_, err := u.db.Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), time.Now())
+	_, err := u.dbProvider.DB().Exec(query, user.TelegramID, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), time.Now())
 	if err != nil {
 		log.Errorf("create user err: %v", err)
 		return err
@@ -31,7 +30,7 @@ func (u UserRepositoryImpl) CreateUser(user models.User) error {
 
 func (u UserRepositoryImpl) UpdateUser(user models.User) error {
 	query := `UPDATE users SET username=$1, first_name=$2, last_name=$3, role=$4, birthdate=$5, updated_at=$6 WHERE telegram_id=$7`
-	_, err := u.db.Exec(query, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), user.TelegramID)
+	_, err := u.dbProvider.DB().Exec(query, user.Username, user.FirstName, user.LastName, user.Role, user.Birthdate, time.Now(), user.TelegramID)
 	if err != nil {
 		log.Errorf("update user err: %v", err)
 		return err
@@ -44,9 +43,10 @@ func (u UserRepositoryImpl) GetUsersWithBirthdayInDays() ([]models.User, error) 
     SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at
     FROM users
     WHERE birthdate IS NOT NULL 
+    AND blocked = false
     AND (EXTRACT(DOY FROM birthdate) - EXTRACT(DOY FROM NOW())) = 2`
 
-	rows, err := u.db.Query(query)
+	rows, err := u.dbProvider.DB().Query(query)
 	if err != nil {
 		log.Errorf("get users with birthday in 3 days err: %v", err)
 		return nil, err
@@ -71,7 +71,7 @@ func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
     SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at
     FROM users
     WHERE role = 'admin'`
-	rows, err := u.db.Query(query)
+	rows, err := u.dbProvider.DB().Query(query)
 	if err != nil {
 		log.Errorf("get all admins err: %v", err)
 		return nil, err
@@ -93,7 +93,7 @@ func (u UserRepositoryImpl) GetAllAdmins() ([]models.User, error) {
 
 func (u UserRepositoryImpl) GetUser(user models.User) (models.User, error) {
 	query := `SELECT id, telegram_id, username, first_name, last_name, role, created_at, updated_at, blocked FROM users WHERE telegram_id=$1;`
-	row := u.db.QueryRow(query, user.TelegramID)
+	row := u.dbProvider.DB().QueryRow(query, user.TelegramID)
 
 	var foundUser models.User
 	err := row.Scan(&foundUser.ID, &foundUser.TelegramID, &foundUser.Username, &foundUser.FirstName, &foundUser.LastName, &foundUser.Role, &foundUser.CreatedAt, &foundUser.UpdatedAt, &foundUser.Blocked)
@@ -109,7 +109,7 @@ func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
     SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at, blocked
     FROM users
     WHERE blocked = false`
-	rows, err := u.db.Query(query)
+	rows, err := u.dbProvider.DB().Query(query)
 	if err != nil {
 		log.Errorf("get all users err: %v", err)
 		return nil, err
@@ -129,9 +129,34 @@ func (u UserRepositoryImpl) GetAllUsers() ([]models.User, error) {
 	return users, nil
 }
 
+func (u UserRepositoryImpl) GetBlockedUsers() ([]models.User, error) {
+	query := `
+    SELECT id, telegram_id, username, first_name, last_name, role, birthdate, created_at, updated_at, blocked
+    FROM users
+    WHERE blocked = true`
+	rows, err := u.dbProvider.DB().Query(query)
+	if err != nil {
+		log.Errorf("get blocked users err: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.LastName, &user.Role, &user.Birthdate, &user.CreatedAt, &user.UpdatedAt, &user.Blocked)
+		if err != nil {
+			log.Errorf("scan user err: %v", err)
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}
+
 func (u UserRepositoryImpl) DeleteUsersByUsernames(usernames []string) error {
 	query := `UPDATE users SET blocked = true WHERE username = ANY($1::text[]);`
-	_, err := u.db.Exec(query, pq.Array(usernames))
+	_, err := u.dbProvider.DB().Exec(query, pq.Array(usernames))
 	if err != nil {
 		log.Errorf("block users by usernames err: %v", err)
 		return err
@@ -145,4 +170,40 @@ func (u UserRepositoryImpl) DeleteUsersByUsernames(usernames []string) error {
 	//	return err
 	//}
 	//return nil
+}
+
+func (u UserRepositoryImpl) UnblockUsersByUsernames(usernames []string) error {
+	query := `UPDATE users SET blocked = false WHERE username = ANY($1::text[]);`
+	_, err := u.dbProvider.DB().Exec(query, pq.Array(usernames))
+	if err != nil {
+		log.Errorf("unblock users by usernames err: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (u UserRepositoryImpl) HasBirthdayNotification(adminTelegramID int64, userTelegramID int64, date time.Time) (bool, error) {
+	query := `SELECT EXISTS (
+		SELECT 1 FROM birthday_notifications
+		WHERE admin_telegram_id = $1 AND user_telegram_id = $2 AND notify_date = $3
+	);`
+	var exists bool
+	err := u.dbProvider.DB().QueryRow(query, adminTelegramID, userTelegramID, date).Scan(&exists)
+	if err != nil {
+		log.Errorf("check birthday notification err: %v", err)
+		return false, err
+	}
+	return exists, nil
+}
+
+func (u UserRepositoryImpl) SaveBirthdayNotification(adminTelegramID int64, userTelegramID int64, date time.Time) error {
+	query := `INSERT INTO birthday_notifications (admin_telegram_id, user_telegram_id, notify_date)
+			  VALUES ($1, $2, $3)
+			  ON CONFLICT DO NOTHING;`
+	_, err := u.dbProvider.DB().Exec(query, adminTelegramID, userTelegramID, date)
+	if err != nil {
+		log.Errorf("save birthday notification err: %v", err)
+		return err
+	}
+	return nil
 }

@@ -15,22 +15,9 @@ const (
 	UserTable = "users"
 )
 
-// New provides db connection and checks it with Ping()
-func New() (*sqlx.DB, error) {
-	dbUrl := fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
-		config.GlobalСonfig.DB.Host, config.GlobalСonfig.DB.Port, config.GlobalСonfig.DB.Username, config.GlobalСonfig.DB.Name,
-		config.GlobalСonfig.DB.Password, config.GlobalСonfig.DB.SSL)
-	db, err := sqlx.Open("postgres", dbUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
+func BuildDSN(cfg config.PostgresConfig) string {
+	return fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s sslmode=%s",
+		cfg.Host, cfg.Port, cfg.Username, cfg.Name, cfg.Password, cfg.SSL)
 }
 
 func MigrateDB(db *sqlx.DB, dbname string) {
