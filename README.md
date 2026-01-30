@@ -25,8 +25,11 @@ Gift Bot - это простой Telegram-бот, предназначенный
 
 3. Настройте бота:
 
-    - Переименуйте `config-example.yml` в `config.yml`.
-    - Обновите `config.yml`, добавив токен вашего Telegram-бота и другие необходимые настройки.
+    - Скопируйте `.env.example` в `.env`.
+    - Заполните значения в `.env`:
+      - `SERVER_GINMODE`, `SERVER_PORT`
+      - `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_NAME`, `PG_PASSWORD`, `PG_SSLMODE`
+      - `TELEGRAM_HOST`, `TELEGRAM_TOKEN`, `TELEGRAM_SECRET`
 
 4. Настройте базу данных:
 
@@ -43,53 +46,10 @@ Gift Bot - это простой Telegram-бот, предназначенный
 
 1. Убедитесь, что у вас установлен Docker и Docker Compose.
 
-2. Измените файл `docker-compose.yml` в корне проекта со следующим содержимым:
+2. Убедитесь, что в `.env` заполнены значения:
 
-    ```yaml
-    version: '3.8'
-
-    services:
-      gift-backend:
-        build:
-          context: .
-          dockerfile: Dockerfile
-        container_name: gift-backend
-        restart: always
-        ports:
-          - "7075:7075"
-        depends_on:
-          postgres:
-            condition: service_healthy
-        networks:
-          - gift-network
-        volumes:
-          - ./db/migrations:/app/migrations
-
-      postgres:
-        image: postgres:latest
-        user: postgres
-        environment:
-          - POSTGRES_DB=giftdb
-          - POSTGRES_PASSWORD=qwertyqqq
-        command: postgres -c 'max_connections=500' -c 'shared_buffers=256MB'
-        ports:
-          - "5544:5432"
-        volumes:
-          - pg-data:/var/lib/postgresql/data
-        networks:
-          - gift-network
-        healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U postgres"]
-          interval: 5s
-          timeout: 5s
-          retries: 5
-
-    volumes:
-      pg-data:
-
-    networks:
-      gift-network:
-    ```
+    - `PG_*` используется и для приложения, и для Docker Compose.
+    - `SERVER_*` и `TELEGRAM_*` используются приложением.
 
 3. Запустите Docker Compose:
 
