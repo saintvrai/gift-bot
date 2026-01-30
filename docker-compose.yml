@@ -13,7 +13,7 @@ services:
     networks:
       - gift-network
     volumes:
-      - ./db/migrations:/app/migrations
+      - ./db/migrations:/db/migrations
 
   postgres:
     image: postgres:15

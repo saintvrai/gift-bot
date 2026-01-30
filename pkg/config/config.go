@@ -31,7 +31,6 @@ type ServerConfig struct {
 }
 
 type TelegramConfig struct {
-	Host   string
 	Token  string
 	Secret string
 }
@@ -55,10 +54,9 @@ func (c *Config) Init() {
 	c.DB.Name = mustGetEnv("PG_NAME")
 	c.DB.Password = mustGetEnv("PG_PASSWORD")
 	c.DB.SSL = getEnvWithDefault("PG_SSLMODE", "disable")
-	c.DB.Migrations = "/app/migrations"
+	c.DB.Migrations = "db/migrations"
 
 	// Telegram
-	c.Telegram.Host = getEnvWithDefault("TELEGRAM_HOST", "api.telegram.org")
 	c.Telegram.Token = mustGetEnv("TELEGRAM_TOKEN")
 	c.Telegram.Secret = mustGetEnv("TELEGRAM_SECRET")
 }
