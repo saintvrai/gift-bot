@@ -31,8 +31,9 @@ type ServerConfig struct {
 }
 
 type TelegramConfig struct {
-	Token  string
-	Secret string
+	Token    string
+	Secret   string
+	ProxyURL string
 }
 
 var GlobalСonfig Config
@@ -59,6 +60,7 @@ func (c *Config) Init() {
 	// Telegram
 	c.Telegram.Token = mustGetEnv("TELEGRAM_TOKEN")
 	c.Telegram.Secret = mustGetEnv("TELEGRAM_SECRET")
+	c.Telegram.ProxyURL = getEnvWithDefault("TELEGRAM_PROXY_URL", "")
 }
 
 func mustGetEnv(key string) string {

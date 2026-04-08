@@ -32,6 +32,15 @@ Gift Bot - это простой Telegram-бот, предназначенный
       - `SERVER_GINMODE`, `SERVER_PORT`
       - `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_NAME`, `PG_PASSWORD`, `PG_SSLMODE`
       - `TELEGRAM_TOKEN`, `TELEGRAM_SECRET`
+      - `TELEGRAM_PROXY_URL` при необходимости, если доступ к Telegram нужен через SOCKS5 proxy
+
+   Пример optional proxy:
+
+    ```sh
+    TELEGRAM_PROXY_URL=socks5://127.0.0.1:10808
+    ```
+
+   Proxy применяется только к Telegram-клиенту и покрывает все вызовы через библиотеку `telegram-bot-api/v5`: стартовый `GetMe`, long polling, `Send`, `GetChat` и остальные методы `BotAPI`.
 
 4. Настройте базу данных:
 
@@ -68,6 +77,7 @@ admin_remove - Снять права администратора (только 
 
     - `PG_*` используется и для приложения, и для Docker Compose.
     - `SERVER_*` и `TELEGRAM_*` используются приложением.
+    - `TELEGRAM_PROXY_URL` опционален и нужен только если Telegram должен идти через SOCKS5 proxy.
 
 3. Запустите Docker Compose:
 
