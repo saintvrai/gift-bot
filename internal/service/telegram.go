@@ -2,15 +2,20 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"gift-bot/pkg/config"
 	"gift-bot/pkg/models"
 	"math/rand"
+	"net"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/proxy"
 )
 
 type Telegram struct {
@@ -25,7 +30,10 @@ type Telegram struct {
 }
 
 func NewTelegramService(userService UserService) *Telegram {
-	bot, err := tgbotapi.NewBotAPI(config.GlobalСonfig.Telegram.Token)
+	bot, err := newTelegramBot(
+		config.GlobalСonfig.Telegram.Token,
+		config.GlobalСonfig.Telegram.ProxyURL,
+	)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -40,6 +48,89 @@ func NewTelegramService(userService UserService) *Telegram {
 		adminMessageData: make(map[int64]*AdminMessageState),
 		rateLimit:        make(map[int64]*rateState),
 	}
+}
+
+func newTelegramBot(token, proxyURL string) (*tgbotapi.BotAPI, error) {
+	client, err := newTelegramHTTPClient(proxyURL)
+	if err != nil {
+		log.WithError(err).WithField("proxy_host", sanitizeProxyHost(proxyURL)).
+			Warn("failed to configure Telegram proxy, falling back to direct connection")
+		return newTelegramHTTPClientBot(token, "")
+	}
+
+	bot, err := tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, client)
+	if err == nil {
+		return bot, nil
+	}
+
+	if proxyURL == "" {
+		return nil, err
+	}
+
+	log.WithError(err).WithField("proxy_host", sanitizeProxyHost(proxyURL)).
+		Warn("failed to initialize Telegram bot via proxy, falling back to direct connection")
+
+	return newTelegramHTTPClientBot(token, "")
+}
+
+func newTelegramHTTPClientBot(token, proxyURL string) (*tgbotapi.BotAPI, error) {
+	client, err := newTelegramHTTPClient(proxyURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return tgbotapi.NewBotAPIWithClient(token, tgbotapi.APIEndpoint, client)
+}
+
+func newTelegramHTTPClient(proxyURL string) (*http.Client, error) {
+	baseDialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	transport := &http.Transport{
+		DialContext:         baseDialer.DialContext,
+		ForceAttemptHTTP2:   true,
+		MaxIdleConns:        100,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
+	if proxyURL == "" {
+		return &http.Client{Transport: transport}, nil
+	}
+
+	parsedURL, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, errors.New("invalid telegram proxy url")
+	}
+
+	dialer, err := proxy.FromURL(parsedURL, baseDialer)
+	if err != nil {
+		return nil, fmt.Errorf("build telegram proxy dialer for host %s: %w", sanitizeProxyHost(proxyURL), err)
+	}
+
+	contextDialer, ok := dialer.(proxy.ContextDialer)
+	if !ok {
+		return nil, fmt.Errorf("telegram proxy dialer for host %s does not support context dialing", sanitizeProxyHost(proxyURL))
+	}
+
+	transport.DialContext = contextDialer.DialContext
+
+	return &http.Client{Transport: transport}, nil
+}
+
+func sanitizeProxyHost(proxyURL string) string {
+	parsedURL, err := url.Parse(proxyURL)
+	if err != nil {
+		return "invalid"
+	}
+
+	if parsedURL.Host == "" {
+		return "invalid"
+	}
+
+	return parsedURL.Host
 }
 
 type AdminMessageState struct {
